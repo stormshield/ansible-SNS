@@ -1,0 +1,22 @@
+- name: Get appliance information
+  sns_command:
+    appliance: "{{ hostvars[target]['vars'] }}"
+    command: SYSTEM PROPERTY
+  register: sysprop
+
+- name: Extract version
+  sns_getconf:
+    result: "{{ sysprop.result }}"
+    section: Result
+    token: Version
+  register: version
+
+- name: Extract model
+  sns_getconf:
+    result: "{{ sysprop.result }}"
+    section: Result
+    token: Model
+  register: model
+
+- debug:
+    msg: "Appliance: {{ target }} model: {{ model.value }} firmware version: {{ version.value }}"

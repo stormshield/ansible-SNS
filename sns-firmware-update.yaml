@@ -1,0 +1,54 @@
+---
+- hosts: localhost
+  connection: local
+  vars:
+    download_folder: "{{ lookup('env', 'HOME') }}/Downloads"
+    version: 3.7.1
+    arch: amd64
+    model: M-VM
+    appliance:
+      host: 10.60.3.235
+      user: admin
+      password: adminadmin
+      sslverifyhost: False
+
+  tasks:
+    - name: Get appliance information
+      sns_command:
+        appliance: "{{ appliance }}"
+        command: SYSTEM PROPERTY
+      register: sysprop
+
+    - name: Extract version
+      sns_getconf:
+        result: "{{ sysprop.result }}"
+        section: Result
+        token: Version
+      register: myversion
+
+    - name: Check if firmware is not already installed
+      fail: msg="Firmware already installed"
+      when: "version == myversion.value"
+
+    - name: Check if appliance firmware is not more recent
+      fail: msg="Firmware on appliance is more recent"
+      when: "version < myversion.value"
+
+    - name: Check if firmware update is already downloaded
+      stat:
+        path: "{{ download_folder }}/fwupd-{{ version }}-SNS-{{ arch }}-{{ model }}.maj"
+      register: firmware_file
+
+    - name: Download firmware from mystormshield
+      get_url:
+        url: "http://data.stormshield.eu/data2/sns/Firmwares/{{ version }}/fwupd-{{ version }}-SNS-{{ arch }}-{{ model }}.maj"
+        dest: "{{ download_folder }}"
+      when: firmware_file.stat.exists == False
+
+    - name: Update SNS appliance
+      sns_command:
+        appliance: "{{ appliance }}"
+        script: |
+          SYSTEM UPDATE UPLOAD < {{ download_folder }}/fwupd-{{ version }}-SNS-{{ arch }}-{{ model }}.maj
+          SYSTEM UPDATE ACTIVATE
+        expect_disconnect: True

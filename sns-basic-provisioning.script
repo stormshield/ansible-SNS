@@ -1,0 +1,50 @@
+#get modify privilege
+MODIFY FORCE ON
+
+#set system name
+system ident SystemName={{ systemName }}
+
+#create objects 
+CONFIG OBJECT HOST NEW name="{{ ntp.host }}"" ip="{{ ntp.ip }}" resolve=dynamic update=1
+CONFIG OBJECT HOST NEW name=dns1 ip="{{ dns.server1 }}" update=1
+CONFIG OBJECT HOST NEW name=dns2 ip="{{ dns.server2 }}" update=1
+CONFIG OBJECT ACTIVATE
+
+#clean ntp configuration
+{% for host in ntplist.value %}
+CONFIG NTP SERVER REMOVE {{ host.name }}
+{% endfor %}
+
+#configure ntp
+CONFIG NTP SERVER ADD name={{ ntp.host }}
+CONFIG NTP ACTIVATE
+
+#clean dns configuration
+{% for key in dnslist.value %}
+CONFIG DNS SERVER REMOVE {{ dnslist.value[key] }}
+{% endfor %}
+
+#configure dns
+CONFIG DNS SERVER ADD dns1
+CONFIG DNS SERVER ADD dns2
+CONFIG DNS ACTIVATE
+
+# clean webadmin acl
+{% for host in acllist.value %}
+CONFIG WEBADMIN ACCESS REMOVE {{ host }}
+{% endfor %}
+
+# set acl to any
+CONFIG WEBADMIN ACCESS ADD any
+CONFIG WEBADMIN ACTIVATE
+
+#configure filtering
+CONFIG FILTER RULE REMOVE type=filter index=9 position=all
+CONFIG FILTER RULE REMOVE type=nat index=9 position=all
+CONFIG FILTER RULE ADDSEP type=filter index=9 collapse=0 color=ff0000 comment="Admin access"
+CONFIG FILTER RULE INSERT type=filter index=9 state=on action=pass srctarget=any dsttarget=Firewall_out dstif=out dsport=ssh comment="Allow SSH on out"
+CONFIG FILTER RULE ADDSEP type=filter index=9 collapse=0 color=0000ff comment="Filtering"
+CONFIG FILTER RULE INSERT type=filter index=9 state=on action=pass srctarget=any dsttarget=any comment="pass all"
+CONFIG FILTER ACTIVATE
+CONFIG SLOT UPDATE type=filter slot=9 name="ansible" comment="Deployed via ansible"
+CONFIG SLOT ACTIVATE type=filter slot=9

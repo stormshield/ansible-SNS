@@ -1,0 +1,10 @@
+- hosts: localhost
+  connection: local
+  vars:
+    appliancelist: "{{ groups['sns-appliances'] }}"
+    backup_folder: "{{ lookup('env', 'HOME') }}/Downloads"
+    timestamp: "{{ ansible_date_time.iso8601_basic_short }}"
+
+  tasks:
+    - include: sns-backup-tasks.yaml target="{{ item }}"
+      with_items: "{{ appliancelist }}"

@@ -1,0 +1,63 @@
+---
+- hosts: localhost
+  connection: local
+  vars:
+    appliance:
+      host: 10.60.3.235
+      user: admin
+      password: adminadmin
+      sslverifyhost: False
+    ntp:
+      host: fr.pool.ntp.org
+      ip: 178.33.214.167
+    dns:
+      server1: 8.8.8.8
+      server2: 8.8.4.4
+    systemName: appliance1
+
+  tasks:
+    - name: Get NTP servers
+      sns_command:
+        appliance: "{{ appliance }}"
+        command: CONFIG NTP SERVER LIST
+      register: ntpservers
+
+    - name: Extract ntp list
+      sns_getconf:
+        result: "{{ ntpservers.result }}"
+        section: Result
+      register: ntplist
+
+    - name: Get DNS servers
+      sns_command:
+        appliance: "{{ appliance }}"
+        command: CONFIG DNS SERVER LIST
+      register: dnsservers
+
+    - name: Extract DNS list
+      sns_getconf:
+        result: "{{ dnsservers.result }}"
+        section: Server
+      register: dnslist
+
+    - name: Get ACL list
+      sns_command:
+        appliance: "{{ appliance }}"
+        command: CONFIG WEBADMIN ACCESS SHOW LIST
+      register: acl
+
+    - name: Extract DNS list
+      sns_getconf:
+        result: "{{ acl.result }}"
+        section: Result
+      register: acllist
+
+    - name: Generate configuration script
+      template:
+        src: sns-basic-provisioning.script
+        dest: /tmp/basic.script
+
+    - name: Execute script
+      sns_command:
+        appliance: "{{ appliance }}"
+        script: "{{ lookup('file', '/tmp/basic.script') }}"

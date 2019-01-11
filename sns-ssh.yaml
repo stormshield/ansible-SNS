@@ -1,0 +1,41 @@
+---
+- hosts: localhost
+  connection: local
+  vars:
+    appliance:
+      host: 10.60.3.235
+      user: admin
+      password: adminadmin
+      sslverifyhost: False
+
+  tasks:
+    - name: Activate SSH service on remote firewall
+      sns_command:
+        appliance: "{{ appliance }}"
+        script: |
+          CONFIG CONSOLE SSH state=1 userpass=1
+          CONFIG CONSOLE ACTIVATE
+
+    - name: Get filter slot information
+      sns_command:
+        appliance: "{{ appliance }}"
+        command: "CONFIG SLOT LIST type=filter"
+      register: slotinfo
+
+    - set_fact:
+        filterslot: "{{ slotinfo.data['Global']['active'] }}"
+
+    - name: Get filtering rules
+      sns_command:
+        appliance: "{{ appliance }}"
+        command: "CONFIG FILTER EXPLICIT type=filter index={{ filterslot }}"
+      register: filterrules
+
+    - name: "Add filter rule to allow ssh"
+      sns_command:
+        appliance: "{{ appliance }}"
+        script: |
+          CONFIG FILTER RULE INSERT type=filter index={{ filterslot }} position=1 state=on action=pass srctarget=Any srcif=out dsttarget=Firewall_out dstport=ssh comment="Allow SSH on OUT"
+          CONFIG FILTER ACTIVATE
+          CONFIG SLOT ACTIVATE type=filter slot={{ filterslot }}
+      when: "'Allow SSH on OUT' not in filterrules.data.Filter[0]"
