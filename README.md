@@ -6,7 +6,10 @@ This library includes two modules:
 - **sns_command**: to execute configuration command or script on a remote appliance using the HTTPS API.
 - **sns_getconf**: to parse and extract values from command output in section/ini format.
 
-Note : Those modules require the [python-SNS-API python library](https://github.com/stormshield/python-SNS-API)
+Notes:
+- Those modules require the [python-SNS-API python library](https://github.com/stormshield/python-SNS-API)
+- Those modules use python3, if Ansible uses python2 by default, you have to set the `ansible_python_interpreter=/usr/bin/python3` configuration option in the task or the inventory.
+
 
 ## sns_command
 
