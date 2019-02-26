@@ -8,7 +8,8 @@ This library includes two modules:
 
 Notes:
 - Those modules require the [python-SNS-API python library](https://github.com/stormshield/python-SNS-API)
-- Those modules use python3, if Ansible uses python2 by default, you have to set the `ansible_python_interpreter=/usr/bin/python3` configuration option in the task or the inventory.
+- The python-SNS-API python library should be installed in the Ansible python environment and in the same python interpreter version. Use `ansible -version` to get the information.
+- If you install the python3 version and if Ansible uses python2 by default, you have to set the `ansible_python_interpreter=/usr/bin/python3` configuration option in the task definition or the inventory.
 
 
 ## sns_command
@@ -135,7 +136,7 @@ The remote appliance connection parameters are defined in the `appliance` dict.
 
 ### sns-firmare-update
 
-The playbook download firmware update from MyStormshield and update the targetted appliance if needed.
+The playbook download firmware update from MyStormshield and update the targeted appliance if needed.
 
 The remote appliance connection parameters are defined in the `appliance` dict.
 
