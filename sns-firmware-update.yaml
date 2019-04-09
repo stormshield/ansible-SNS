@@ -3,11 +3,11 @@
   connection: local
   vars:
     download_folder: "{{ lookup('env', 'HOME') }}/Downloads"
-    version: 3.7.1
+    version: 3.7.2
     arch: amd64
     model: M-VM
     appliance:
-      host: 10.60.3.235
+      host: 10.60.3.75
       user: admin
       password: adminadmin
       sslverifyhost: False
@@ -25,6 +25,12 @@
         section: Result
         token: Version
       register: myversion
+
+    - name: Check for HA cluster
+      sns_command:
+        appliance: "{{ appliance }}"
+        command: HA INFO
+      register: hainfo
 
     - name: Check if firmware is not already installed
       fail: msg="Firmware already installed"
@@ -45,10 +51,13 @@
         dest: "{{ download_folder }}"
       when: firmware_file.stat.exists == False
 
-    - name: Update SNS appliance
-      sns_command:
-        appliance: "{{ appliance }}"
-        script: |
-          SYSTEM UPDATE UPLOAD < {{ download_folder }}/fwupd-{{ version }}-SNS-{{ arch }}-{{ model }}.maj
-          SYSTEM UPDATE ACTIVATE
-        expect_disconnect: True
+    - debug:
+        msg: "Updating firmware from {{ myversion.value }} to {{ version }}"
+
+    - name: Update appliance
+      include: sns-firmware-update-single-task.yaml
+      when: "hainfo.ret == 200"
+
+    - name: Update cluster
+      include: sns-firmware-update-cluster-task.yaml
+      when: "hainfo.ret == 100"

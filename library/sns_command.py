@@ -32,6 +32,9 @@ options:
   expect_disconnect:
     description
       - Set to True if the script makes the remote server to disconnect (ie: install firmware update)
+  force_modify:
+    description
+      - Set to true to disconnect other administrator already connected with modify privilege.
   appliance:
     description:
       - appliance connection's parameters (host, port, user, password, sslverifypeer, sslverifyhost, cabundle, usercert)
@@ -130,6 +133,7 @@ def main():
             "command": {"required": False, "type": "str"},
             "script": {"required": False, "type": "str"},
             "expect_disconnect": {"required": False, "type":"bool", "default":False},
+            "force_modify": {"required": False, "type":"bool", "default":False},
             "appliance": {
                 "required": True, "type": "dict",
                 "options": {
@@ -152,14 +156,13 @@ def main():
     command = module.params['command']
     script = module.params['script']
     expect_disconnect = module.params['expect_disconnect']
+    force_modify = module.params['force_modify']
 
     if command is None and script is None:
         module.fail_json(msg="A command or a script is required")
-        return
 
     if command is not None and script is not None:
         module.fail_json(msg="Got both command and script")
-        return
 
     try:
         client = SSLClient(
@@ -175,26 +178,30 @@ def main():
             autoconnect=False)
     except Exception as exception:
         module.fail_json(msg=str(exception))
-        return
 
     try:
         client.connect()
     except Exception as exception:
         module.fail_json(msg=str(exception))
-        return
+
+    if force_modify:
+        try:
+            response = client.send_command("MODIFY FORCE ON")
+        except Exception as exception:
+            client.disconnect()
+            module.fail_json(msg="Can't take Modify privilege: {}".format(str(exception)))
+        if response.ret >= 200:
+            client.disconnect()
+            module.fail_json(msg="Can't take Modify privilege", result=response.output,
+                             data=response.parser.serialize_data(), ret=response.ret)
 
     if command is not None:
         # execute single command
         try:
             response = client.send_command(command)
         except Exception as exception:
-            if expect_disconnect and str(exception) == "Server disconnected":
-                pass
-            else:
-                module.fail_json(msg=str(exception), result=response.output, 
-                                 data=response.parser.serialize_data(), ret=response.ret)
-                client.disconnect()
-                return
+            client.disconnect()
+            module.fail_json(msg=str(exception))
         client.disconnect()
         module.exit_json(changed=True, result=response.output,
                          data=response.parser.serialize_data(), ret=response.ret)
@@ -202,6 +209,7 @@ def main():
         # execute script
         output = ""
         success = True
+        need_reboot = False
         for command in script.splitlines():
             command = command.strip('\r\n')
             output += command + "\n"
@@ -214,19 +222,20 @@ def main():
                 output += response.output + "\n"
                 if response.ret >= 200:
                     success = False
+                elif response.ret == client.SRV_RET_MUSTREBOOT:
+                    need_reboot = True
             except Exception as exception:
                 if expect_disconnect and str(exception) == "Server disconnected":
-                    pass
+                    break
                 else:
-                    module.fail_json(msg=str(exception), output=output, success=False)
                     client.disconnect()
-                    return
-
+                    module.fail_json(msg=str(exception), output=output, success=False, need_reboot = need_reboot)
         client.disconnect()
         if success:
-            module.exit_json(changed=True, output=output, success=True)
+            module.exit_json(changed=True, output=output, success=True, need_reboot = need_reboot)
         else:
-            module.fail_json(msg="Errors during the script execution", output=output, success=False)
+            module.fail_json(msg="Errors during the script execution", output=output, success=False, need_reboot = need_reboot)
+
 
 if __name__ == '__main__':
     main()

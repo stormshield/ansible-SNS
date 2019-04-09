@@ -1,0 +1,55 @@
+- name: Get HA cluster information
+  sns_command:
+    appliance: "{{ appliance }}"
+    command: HA CLUSTER LIST
+  register: hacluster
+
+- name: Get active firewall serial
+  sns_getconf:
+    result: "{{ sysprop.result }}"
+    section: Result
+    token: SerialNumber
+  register: serial_active
+
+- name: Get passive serial
+  set_fact:
+    serial_passive: "{{ item }}"
+  when: "item != serial_active.value"
+  with_items: "{{ hacluster.data.HA }}"
+
+- name: Update passive firewall
+  sns_command:
+    appliance: "{{ appliance }}"
+    script: |
+      SYSTEM UPDATE UPLOAD fwserial=all < {{ download_folder }}/fwupd-{{ version }}-SNS-{{ arch }}-{{ model }}.maj
+      SYSTEM UPDATE ACTIVATE fwserial=passive
+
+- pause:
+    minutes: 1
+
+- name: Wait for passive firewall update
+  sns_command:
+    appliance: "{{ appliance }}"
+    command: HA INFO
+  register: result
+  until: result.data[serial_passive][0]['Reply'] == '1'
+  retries: 20
+  delay: 30
+
+- name: Update active firewall and swap
+  sns_command:
+    appliance: "{{ appliance }}"
+    command: SYSTEM UPDATE ACTIVATE fwserial=active
+    expect_disconnect: True
+
+- pause:
+    minutes: 1
+
+- name: Wait for firewall update
+  sns_command:
+    appliance: "{{ appliance }}"
+    command: HA INFO
+  register: result
+  until: result.data[serial_active.value][0]['Reply'] == '1'
+  retries: 20
+  delay: 30

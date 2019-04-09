@@ -1,0 +1,20 @@
+- name: Update SNS appliance
+  sns_command:
+    appliance: "{{ appliance }}"
+    script: |
+      SYSTEM UPDATE UPLOAD < {{ download_folder }}/fwupd-{{ version }}-SNS-{{ arch }}-{{ model }}.maj
+      SYSTEM UPDATE ACTIVATE
+    expect_disconnect: True
+
+- pause:
+    minutes: 1
+
+- name: Wait for firewall update
+  sns_command:
+    appliance: "{{ appliance }}"
+    command: SYSTEM PROPERTY
+  ignore_errors: yes
+  register: result
+  until: "'ret' in result and result.ret == 100"
+  retries: 20
+  delay: 30
