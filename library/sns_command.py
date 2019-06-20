@@ -37,11 +37,11 @@ options:
       - Set to true to disconnect other administrator already connected with modify privilege.
   appliance:
     description:
-      - appliance connection's parameters (host, port, user, password, sslverifypeer, sslverifyhost, cabundle, usercert)
+      - appliance connection's parameters (host, port, user, password, sslverifypeer, sslverifyhost, cabundle, usercert, proxy)
 author:
   - Remi Pauchet (@stormshield)
 notes:
-  - This module requires pySNSAPI python library
+  - This module requires python-SNS-API library
 '''
 
 EXAMPLES = '''
@@ -145,7 +145,8 @@ def main():
                     "sslverifypeer": {"required": False, "type": "bool", "default": True},
                     "sslverifyhost": {"required": False, "type": "bool", "default": True},
                     "cabundle": {"required": False, "type": "str"},
-                    "usercert": {"required": False, "type": "str"}
+                    "usercert": {"required": False, "type": "str"},
+                    "proxy":  {"required": False, "type": "str"},
                 }
             }
         }
@@ -175,6 +176,7 @@ def main():
             sslverifyhost=module.params['appliance']['sslverifyhost'],
             cabundle=module.params['appliance']['cabundle'],
             usercert=module.params['appliance']['usercert'],
+            proxy=module.params['appliance']['proxy'],
             autoconnect=False)
     except Exception as exception:
         module.fail_json(msg=str(exception))

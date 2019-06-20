@@ -7,7 +7,7 @@ This library includes two modules:
 - **sns_getconf**: to parse and extract values from command output in section/ini format.
 
 Notes:
-- Those modules require the [python-SNS-API python library](https://github.com/stormshield/python-SNS-API)
+- These modules require the [python-SNS-API python library](https://github.com/stormshield/python-SNS-API)
 - The python-SNS-API python library should be installed in the Ansible python environment and in the same python interpreter version. Use `ansible -version` to get the information.
 - If you install the python3 version and if Ansible uses python2 by default, you have to set the `ansible_python_interpreter=/usr/bin/python3` configuration option in the task definition or the inventory.
 
@@ -64,7 +64,7 @@ changed: [localhost] => changed=true
     model: "{{ sysprop.data['Result']['Model'] }}"
 ```
 
-Script execution is recorded in the `output` property. The `success` property indicates if all commands were executed with success or not (scripts don't stop on the first error).
+Script execution is recorded in the `output` property. The `success` property indicates if all commands were successfully executed or not (scripts do not stop on the first error).
 
 ```yaml
   tasks:
@@ -82,9 +82,9 @@ Script execution is recorded in the `output` property. The `success` property in
 ### About ssl validation
 
 * For the first connection to a new appliance, ssl host name verification can be bypassed with `sslverifyhost: false` option.
-* To connect to a known appliance with the default stormshield certificate, use `host: <serial>` and `ip: <ip address>` to validate the appliance certificate.
-* If a custom CA and certificate is installed on the appliance, use `cabundle: /path/to/ca.pem`, `host: <dns name>`.
-* For client certificate authentication, the expected format is a pem file with the certificate and the unencrypted key concatenated `usercert: /path/to/cert.pem`.
+* To connect to a well-known appliance with the default Stormshield certificate, use `host: <serial>` and `ip: <ip address>` to validate the appliance certificate.
+* If a custom CA and certificate are installed on the appliance, use `cabundle: /path/to/ca.pem`, `host: <dns name>`.
+* For client certificate authentication, the expected format is a PEM file with the certificate and the unencrypted key concatenated `usercert: /path/to/cert.pem`.
 
 Example:
 
@@ -96,9 +96,22 @@ Example:
         cabundle: /cert/ca.pem
 ```
 
+## Proxy
+
+The module supports http and socks proxy.
+
+Example:
+
+```yaml:
+    appliance:
+      vars:
+        host: myappliance.local
+        proxy: socks5://myproxy.local:1080
+```
+
 ## sns_getconf
 
-This module extracts information from the result of a configuration command. The default parameters is the value returned if the token is not found in the analysed result.
+This module extracts information from the result of a configuration command. The default parameters is the value returned if the token is not found in the analyzed result.
 
 For example, the `SYSTEM PROPERTY` command returns:
 
@@ -111,7 +124,7 @@ MachineType="amd64"
 Version="3.7.1"
 [...]
 ```
-We can extract the firmware version with the following task:
+Firmware version can be extracted with the following task:
 
 ```yaml
   tasks:
@@ -128,7 +141,7 @@ We can extract the firmware version with the following task:
 
 ### sns-ssh.yaml
 
-This playbook activate the ssh access and configure the corresponding filtering rule on the remote appliance.
+This playbook activates the ssh access and configure the corresponding filtering rule on the remote appliance.
 
 The remote appliance connection parameters are defined in the `appliance` dict.
 
@@ -136,7 +149,7 @@ The remote appliance connection parameters are defined in the `appliance` dict.
 
 ### sns-firmare-update
 
-The playbook download firmware update from MyStormshield and update the targeted appliance if needed.
+The playbook downloads firmware update from MyStormshield and updates the targeted appliance if needed.
 
 The remote appliance connection parameters are defined in the `appliance` dict.
 
@@ -148,7 +161,7 @@ This playbook returns the firmware version and the model of all the appliances o
 
 `$ ansible-playbook -i inventory.yaml sns-property.yaml`
 
-Or to filter by appliances:
+Or to filter by appliance:
 
 `$ ansible-playbook -i inventory.yaml --extra-vars 'appliancelist=["appliance1"]' sns-property.yaml`
 
@@ -171,7 +184,7 @@ sns-appliances:
 ### sns-basic-provisioning
 
 This playbook configures NTP and DNS services, webadmin ACL and filtering.
-This example shows how to use a script template (sns-basic-provisioning.script) with ansible.
+This example shows how to use a script template (sns-basic-provisioning.script) with Ansible.
 
 `$ ansible-playbook sns-basic-provisioning.yaml`
 
