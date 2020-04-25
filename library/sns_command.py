@@ -32,6 +32,9 @@ options:
   expect_disconnect:
     description
       - Set to True if the script makes the remote server to disconnect (ie: install firmware update)
+  connection_timeout:
+    description
+      - Set a connection timeout
   force_modify:
     description
       - Set to true to disconnect other administrator already connected with modify privilege.
@@ -59,6 +62,7 @@ EXAMPLES = '''
       SYSTEM UPDATE UPLOAD < /tmp/fwupd-SNS-3.7.1-amd64-M.maj
       SYSTEM UPDATE ACTIVATE
     expect_disconnect: True
+    connection_timeout: 60
     appliance:
       host: myappliance.local
       password: mypassword
@@ -132,8 +136,9 @@ def main():
         argument_spec={
             "command": {"required": False, "type": "str"},
             "script": {"required": False, "type": "str"},
-            "expect_disconnect": {"required": False, "type":"bool", "default":False},
-            "force_modify": {"required": False, "type":"bool", "default":False},
+            "expect_disconnect": {"required": False, "type":"bool", "default": False},
+            "force_modify": {"required": False, "type":"bool", "default": False},
+            "connection_timeout": {"required": False, "type": "int", "default": 0},
             "appliance": {
                 "required": True, "type": "dict",
                 "options": {
@@ -158,6 +163,7 @@ def main():
     script = module.params['script']
     expect_disconnect = module.params['expect_disconnect']
     force_modify = module.params['force_modify']
+    connection_timeout = module.params['connection_timeout']
 
     if command is None and script is None:
         module.fail_json(msg="A command or a script is required")
@@ -188,8 +194,12 @@ def main():
 
     if force_modify:
         try:
-            response = client.send_command("MODIFY FORCE ON")
+            response = client.send_command("MODIFY FORCE ON", timeout=connection_timeout)
         except Exception as exception:
+            if exception.__class__.__name__ == "ReadTimeout":
+                # Cannot perform a logout if server is not reponding, need to fail here.
+                module.fail_json(msg=str(exception), success=False)
+
             client.disconnect()
             module.fail_json(msg="Can't take Modify privilege: {}".format(str(exception)))
         if response.ret >= 200:
@@ -200,8 +210,12 @@ def main():
     if command is not None:
         # execute single command
         try:
-            response = client.send_command(command)
+            response = client.send_command(command, timeout=connection_timeout)
         except Exception as exception:
+            if exception.__class__.__name__ == "ReadTimeout":
+                # Cannot perform a logout if server is not reponding, need to fail here.
+                module.fail_json(msg=str(exception), success=False)
+
             client.disconnect()
             module.fail_json(msg=str(exception))
         client.disconnect()
@@ -220,18 +234,22 @@ def main():
             if EMPTY_RE.match(command):
                 continue
             try:
-                response = client.send_command(command)
+                response = client.send_command(command, timeout=connection_timeout)
                 output += response.output + "\n"
                 if response.ret >= 200:
                     success = False
                 elif response.ret == client.SRV_RET_MUSTREBOOT:
                     need_reboot = True
             except Exception as exception:
+                if exception.__class__.__name__ == "ReadTimeout":
+                    # Cannot perform a logout if server is not reponding, need to fail here.
+                    module.fail_json(msg=str(exception), output=output, success=False, need_reboot=need_reboot)
+
                 if expect_disconnect and str(exception) == "Server disconnected":
                     break
                 else:
                     client.disconnect()
-                    module.fail_json(msg=str(exception), output=output, success=False, need_reboot = need_reboot)
+                module.fail_json(msg=str(exception), output=output, success=False, need_reboot = need_reboot)
         client.disconnect()
         if success:
             module.exit_json(changed=True, output=output, success=True, need_reboot = need_reboot)
