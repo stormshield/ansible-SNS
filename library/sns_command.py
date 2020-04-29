@@ -33,8 +33,11 @@ options:
     description
       - Set to True if the script makes the remote server to disconnect (ie: install firmware update)
   force_modify:
-    description
+    description:
       - Set to true to disconnect other administrator already connected with modify privilege.
+  timeout:
+    description:
+      - Set the connection and read timeout.
   appliance:
     description:
       - appliance connection's parameters (host, port, user, password, sslverifypeer, sslverifyhost, cabundle, usercert, proxy)
@@ -134,6 +137,7 @@ def main():
             "script": {"required": False, "type": "str"},
             "expect_disconnect": {"required": False, "type":"bool", "default":False},
             "force_modify": {"required": False, "type":"bool", "default":False},
+            "timeout": {"required": False, "type": "int", "default": None},
             "appliance": {
                 "required": True, "type": "dict",
                 "options": {
@@ -165,6 +169,10 @@ def main():
     if command is not None and script is not None:
         module.fail_json(msg="Got both command and script")
 
+    options = {}
+    if module.params['timeout'] is not None:
+      options["timeout"] = module.params['timeout']
+
     try:
         client = SSLClient(
             host=module.params['appliance']['host'],
@@ -177,7 +185,8 @@ def main():
             cabundle=module.params['appliance']['cabundle'],
             usercert=module.params['appliance']['usercert'],
             proxy=module.params['appliance']['proxy'],
-            autoconnect=False)
+            autoconnect=False,
+            **options)
     except Exception as exception:
         module.fail_json(msg=str(exception))
 
