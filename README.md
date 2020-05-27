@@ -10,6 +10,7 @@ Notes:
 - These modules require the [python-SNS-API python library](https://github.com/stormshield/python-SNS-API)
 - The python-SNS-API python library should be installed in the Ansible python environment and in the same python interpreter version. Use `ansible -version` to get the information.
 - If you install the python3 version and if Ansible uses python2 by default, you have to set the `ansible_python_interpreter=/usr/bin/python3` configuration option in the task definition or the inventory.
+- Ansible roles and additional how-to guide can be found at: [Ansible roles repository](https://github.com/stormshield/sns-scripting/tree/master/ansible-roles)
 
 
 ## sns_command
@@ -168,7 +169,7 @@ Or to filter by appliance:
 The inventory file declares the connection parameters of the appliances:
 
 ```yaml
-sns-appliances:
+sns_appliances:
   hosts:
     appliance1:
       vars:

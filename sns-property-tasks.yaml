@@ -1,7 +1,8 @@
 - name: Get appliance information
   sns_command:
-    appliance: "{{ hostvars[target]['vars'] }}"
+    appliance: "{{ hostvars[target]['appliance'] }}"
     command: SYSTEM PROPERTY
+    timeout: 10
   register: sysprop
 
 - name: Extract version

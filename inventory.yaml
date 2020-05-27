@@ -1,13 +1,13 @@
-sns-appliances:
+sns_appliances:
   hosts:
-    appliance1:
-      vars:
+    utm1:
+      appliance:
         host: 10.60.3.235
         user: admin
         password: adminadmin
         sslverifyhost: false
-    appliance2:
-      vars:
+    utm2:
+      appliance:
         host: 10.60.4.26
         user: admin
         password: adminadmin
