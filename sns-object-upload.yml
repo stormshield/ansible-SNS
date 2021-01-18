@@ -1,0 +1,8 @@
+- hosts: localhost
+  connection: local
+  vars:
+    - appliancelist: "{{ groups['sns_appliances'] }}"
+
+  tasks:
+    - include: sns-object-upload-tasks.yaml target="{{ item }}"
+      with_items: "{{ appliancelist }}"
