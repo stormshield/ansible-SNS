@@ -2,9 +2,10 @@
 
 Ansible modules to configure Stormshield Network Security Appliances.
 
-This library includes two modules:
+This library includes the following modules:
 - **sns_command**: to execute configuration command or script on a remote appliance using the HTTPS API.
 - **sns_getconf**: to parse and extract values from command output in section/ini format.
+- **sns_object_import**: to import objects to a remote appliance using a CSV file
 
 Notes:
 - These modules require the [python-SNS-API python library](https://github.com/stormshield/python-SNS-API)
@@ -138,6 +139,26 @@ Firmware version can be extracted with the following task:
       register: myversion
 ```
 
+## sns_object_import
+
+This module uploads the specified csv file to the remote appliance. 
+Depending on the size of the file, an upload task can take more time 
+
+```yaml
+- name: Upload CSV OBJECT with a local file
+  sns_object_import:
+    path: path/to/objectFile.csv
+    appliance:
+      host: myappliance.local
+      password: mypassword
+  delegate_to: localhost
+  register: sample_upload
+# Sample output :
+sample_upload: {'Status': 'OK', 'Code': '0', 'Num_line': '934', 'host': '402', 'network': '532'}"
+```
+
+> Please note that the import will fail if you are trying to insert more objects than the appliance supports
+
 ## Examples:
 
 ### sns-ssh.yaml
@@ -195,6 +216,13 @@ This playbook backups the configuration of the appliances referenced in the inve
 
 `$ ansible-playbook -i inventory.yaml sns-backup.yaml`
 
+### sns-object-upload
+
+This playbook uploads a CSV file in the object database of the appliance.
+
+`$ ansible-playbook -i inventory.yaml sns-object-upload.yaml`
+
+> Exporting object database from an appliance is a good way to apprehend the expected format
 
 ## Links
 
