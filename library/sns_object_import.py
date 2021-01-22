@@ -67,6 +67,7 @@ Status:
 '''
 
 import os.path
+import time
 
 from stormshield.sns.sslclient import SSLClient
 
@@ -94,24 +95,22 @@ def uploadObjectCSV(fwConnection,objectFilePath):
                 uploadStatus (dict): the final upload status
     '''
     if os.path.exists(objectFilePath) == False:
-      raise Exception("Specified file %s does not exist" %(objectFilePath))  
-    payload={
-        "UPLOADING-FILE": "CONFIG OBJECT IMPORT UPLOAD < %s" % (objectFilePath),
-        "IMPORT-COMMIT": "CONFIG OBJECT IMPORT ACTIVATE",
-        "COMMIT-OBJECT-DB": "CONFIG OBJECT ACTIVATE"
-    }
-    runCommand(fwConnection,"CONFIG OBJECT IMPORT CANCEL")
-    runCommand(fwConnection,payload["UPLOADING-FILE"])
-    runCommand(fwConnection,payload["IMPORT-COMMIT"])
+      raise Exception("Specified file %s does not exist" %(objectFilePath))
+
+    runCommand(fwConnection, "CONFIG OBJECT IMPORT CANCEL") # reset previous erroneous state
+    runCommand(fwConnection, "CONFIG OBJECT IMPORT UPLOAD < %s" % (objectFilePath))
+    runCommand(fwConnection, "CONFIG OBJECT IMPORT ACTIVATE")
     currentUploadStatus=getObjectUploadStatus(fwConnection)
     while True:
         if currentUploadStatus.data['Result']['Status'] == "OK":
             uploadStatus=currentUploadStatus.data['Result']
+            runCommand(fwConnection, "CONFIG OBJECT ACTIVATE")
             break
         if currentUploadStatus.data['Result']['Status'] in ['FAILED' ,'NO IMPORT PENDING']:
             raise Exception('A problem occured during upload activation : %s' % str(currentUploadStatus.data['Result']))
             break
         if currentUploadStatus.data['Result']['Status'] == "PENDING":
+            time.sleep(2) # wait for completion
             currentUploadStatus=getObjectUploadStatus(fwConnection)
     return uploadStatus
 

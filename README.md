@@ -141,8 +141,8 @@ Firmware version can be extracted with the following task:
 
 ## sns_object_import
 
-This module uploads the specified csv file to the remote appliance. 
-Depending on the size of the file, an upload task can take more time 
+This module imports the specified CSV file to the remote appliance. 
+Depending on the size of the file, an upload task can take some time.
 
 ```yaml
 - name: Upload CSV OBJECT with a local file
@@ -216,11 +216,11 @@ This playbook backups the configuration of the appliances referenced in the inve
 
 `$ ansible-playbook -i inventory.yaml sns-backup.yaml`
 
-### sns-object-upload
+### sns-object-import
 
 This playbook uploads a CSV file in the object database of the appliance.
 
-`$ ansible-playbook -i inventory.yaml sns-object-upload.yaml`
+`$ ansible-playbook -i inventory.yaml sns-object-import.yaml`
 
 > Exporting object database from an appliance is a good way to apprehend the expected format
 

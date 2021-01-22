@@ -11,7 +11,7 @@
 - name: Uploading CSV for Objects DB population for {{ target }}
   sns_object_import:
     appliance: "{{ hostvars[target]['appliance'] }}"
-    path: OBJECTS.csv
+    path: "{{ csvfile }}"
     force_modify: true
   register: csv_upload
 
