@@ -1,0 +1,9 @@
+- hosts: localhost
+  connection: local
+  vars:
+    - appliancelist: "{{ groups['sns_appliances'] }}"
+    - csvfile: OBJECTS.csv
+
+  tasks:
+    - include: sns-object-import-tasks.yaml target="{{ item }}"
+      with_items: "{{ appliancelist }}"

@@ -1,0 +1,30 @@
+- name: Check DB OBJECT
+  sns_command:
+    appliance: "{{ hostvars[target]['appliance'] }}"
+    command: CONFIG OBJECT LIST TYPE=all usage=any
+  register: object_list
+
+- name: Counting OBJECTS BEFORE UPLOAD 
+  debug:
+    msg: "OBJECTS IN APPLIANCE : {{ object_list.data.Object  | length }}"
+
+- name: Uploading CSV for Objects DB population for {{ target }}
+  sns_object_import:
+    appliance: "{{ hostvars[target]['appliance'] }}"
+    path: "{{ csvfile }}"
+    force_modify: true
+  register: csv_upload
+
+- name: Showing UPLOAD STATUS
+  debug:
+    msg: "CSV UPLOAD STATUS: {{ csv_upload.Status }} | OUTPUT : {{ csv_upload.output }}"
+
+- name: Check object DB
+  sns_command:
+    appliance: "{{ hostvars[target]['appliance'] }}"
+    command: CONFIG OBJECT LIST TYPE=all usage=any
+  register: object_list
+
+- name: Counting OBJECTS AFTER UPLOAD
+  debug:
+    msg: "OBJECTS IN APPLIANCE : {{ object_list.data.Object  | length }}"
