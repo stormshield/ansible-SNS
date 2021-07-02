@@ -26,12 +26,12 @@ description:
   TODO: update
   Configuration API reference: https://documentation.stormshield.eu/SNS/v4/en/Content/Basic_Command_Line_Interface_configurations
 options:
-  name:
+  uid:
     name of the user
-  comment:
-    optionnal comment
-  groups:
-    groups to which user belongs
+  given_name:
+    optionnal full name (will default to uid if absent)
+  group:
+    group to which user belongs (TODO: only one for now)
   state:
       description:
           - Whether the account should exist or not, taking action if the state is different from what is stated.
@@ -55,7 +55,9 @@ notes:
 EXAMPLES = '''
 - name: Create a user account
   sns_users:
-    name: toto
+    uid: toto
+    given_name: toto tata
+    group: TotoGroup
     state: present
     appliance:
       host: myappliance.local
@@ -90,57 +92,66 @@ def runCommand(fwConnection,command):
     return fwConnection.send_command(command)
 
 
-def user_exists(fwConnection, username):
-    response = runCommand(fwConnection, "USER SHOW user=%s" % username)
-    if response.ret == 100:
-        return True
-    else:
-        return False
+class User:
+    def __init__(self, uid, given_name=None, group=None, module=None):
+        self.uid = uid
+        self.given_name = given_name
+        self.group = group
+        self.module = module  # used to debug ansible module
+        self.dn = None
 
 
-def user_getdn(fwConnection, username):
-    response = runCommand(fwConnection, "USER SHOW user=%s" % username)
-    data = response.parser.serialize_data()
-    user_dn = data['User']['dn']
-    return user_dn
+    def setdn(self, fwConnection):
+        response = runCommand(fwConnection, "USER SHOW user=%s" % self.uid)
+        data = response.parser.serialize_data()
+        self.dn = data['User']['dn']
 
 
-def group_getmembers(fwConnection, groupname):
-    response = runCommand(fwConnection, "USER GROUP SHOW group=%s" % groupname)
-    if response.ret >= 200:
-        # probably groupname error
-        #TODO: implement group check
-        return None
-    data = response.parser.serialize_data()
-    member_keys = [k for k in data['Group'].keys() if 'member' in k]
-    members = [data['Group'][m] for m in member_keys]
-
-    return members
+    def exists(self, fwConnection):
+        response = runCommand(fwConnection, "USER SHOW user=%s" % self.uid)
+        if response.ret == 100:
+            return True
+        else:
+            return False
 
 
-def user_in_group(fwConnection, username, groupname):
-    user_dn = user_getdn(fwConnection, username)
-    members = group_getmembers(fwConnection, groupname)
-    if not members:
-        return False
-    if user_dn in members:
-        return True
-    else:
-        return False
+    def create(self):
+        pass
+    
+    def remove_user(self):
+        pass
+    
+    def modify_user(self):
+        pass
 
-def create_user():
-    pass
 
-def remove_user():
-    pass
-
-def modify_user():
-    pass
+    def group_getmembers(self, fwConnection, groupname):
+        response = runCommand(fwConnection, "USER GROUP SHOW group=%s" % groupname)
+        if response.ret >= 200:
+            # probably groupname error
+            #TODO: implement group check
+            return None
+        data = response.parser.serialize_data()
+        member_keys = [k for k in data['Group'].keys() if 'member' in k]
+        members = [data['Group'][m] for m in member_keys]
+    
+        return members
+    
+    
+    def in_group(self, fwConnection, groupname):
+        members = self.group_getmembers(fwConnection, groupname)
+        if not members:
+            return False
+        if self.dn in members:
+            return True
+        else:
+            return False
 
 def main():
     module = AnsibleModule(
         argument_spec={
-            "name": {"required": True, "type": "str"},
+            "uid": {"required": True, "type": "str"},
+            "given_name": {"required": False, "type": "str"},
             "state": {"type": "str", "default": "present", "choices": ['absent', 'present']},
             "group": {"required": False, "type": "str"},
             "force_modify": {"required": False, "type":"bool", "default":False},
@@ -163,18 +174,20 @@ def main():
         }
     )
 
-    name = module.params['name']
+    # prefly checks
+    uid = module.params['uid']
     state = module.params['state']
     group = module.params['group']
     force_modify = module.params['force_modify']
 
-    if name is None:
-        module.fail_json(msg="User name is required")
+    if uid is None:
+        module.fail_json(msg="User uid is required")
 
     options = {}
     if module.params['timeout'] is not None:
       options["timeout"] = module.params['timeout']
 
+    # sns connection
     try:
         client = SSLClient(
             host=module.params['appliance']['host'],
@@ -197,6 +210,7 @@ def main():
     except Exception as exception:
         module.fail_json(msg=str(exception))
 
+    # write privileges handling
     if force_modify:
         try:
             response = client.send_command("MODIFY FORCE ON")
@@ -207,27 +221,27 @@ def main():
             client.disconnect()
             module.fail_json(msg="Can't take Modify privilege", result=response.output,
                              data=response.parser.serialize_data(), ret=response.ret)
-##
-# custom
 
+    # user handling
     resultJson=dict(changed=False, original_message='', message='')
+    current_user = User(uid, 'given_name', group, module)
 
     if state == 'present':
-      if user_exists(client, name):
-        user_dn = user_getdn(client, name)
+      if current_user.exists(client):
+        current_user.setdn(client)
         if group:
-            if user_in_group(client, name, group):
+            if current_user.in_group(client, group):
                 resultJson['changed']=False
-                resultJson['message']="user %s already exists and is in the right group!" % name
+                resultJson['message']="user %s already exists and is in the right group!" % uid
             else:
                 resultJson['changed']=True
-                resultJson['message']="user %s already exists but not in group %s!" % (name, group)
+                resultJson['message']="user %s already exists but not in group %s!" % (uid, group)
         else:
           resultJson['changed']=False
-          resultJson['message']="user %s already exists !" % name
+          resultJson['message']="user %s already exists !" % uid
       else:
         resultJson['changed']=True
-        resultJson['message']="user %s does not exists !" % name
+        resultJson['message']="user %s does not exists !" % uid
 
       client.disconnect()
       module.exit_json(**resultJson)
