@@ -53,7 +53,7 @@ notes:
 '''
 
 EXAMPLES = '''
-- name: Upload CSV OBJECT with a local file
+- name: Create a user account
   sns_users:
     name: toto
     state: present
@@ -79,6 +79,7 @@ import os.path
 import time
 
 from stormshield.sns.sslclient import SSLClient
+from stormshield.sns.configparser import ConfigParser
 
 from ansible.module_utils.basic import AnsibleModule
 
@@ -88,46 +89,41 @@ def runCommand(fwConnection,command):
     '''
     return fwConnection.send_command(command)
 
-def getObjectUploadStatus(fwConnection):
-    '''
-    returns the object import status
-    '''
-    return runCommand(fwConnection,"CONFIG OBJECT IMPORT STATUS")
 
-def uploadObjectCSV(fwConnection,objectFilePath):
-    '''
-    Uploads a CSV file to SNS appliance. Returns the final upload status.
-        Parameters:
-                fwConnection (SSLClient): SNS connection socket initialized outside with SSLClient()
-                objectFilePath (str): CSV file to upload
-        Returns:
-                uploadStatus (dict): the final upload status
-    '''
-    if os.path.exists(objectFilePath) == False:
-      raise Exception("Specified file %s does not exist" %(objectFilePath))
-
-    runCommand(fwConnection, "CONFIG OBJECT IMPORT CANCEL") # reset previous erroneous state
-    runCommand(fwConnection, "CONFIG OBJECT IMPORT UPLOAD < %s" % (objectFilePath))
-    runCommand(fwConnection, "CONFIG OBJECT IMPORT ACTIVATE")
-    currentUploadStatus=getObjectUploadStatus(fwConnection)
-    while True:
-        if currentUploadStatus.data['Result']['Status'] == "OK":
-            uploadStatus=currentUploadStatus.data['Result']
-            runCommand(fwConnection, "CONFIG OBJECT ACTIVATE")
-            break
-        if currentUploadStatus.data['Result']['Status'] in ['FAILED' ,'NO IMPORT PENDING']:
-            raise Exception('A problem occured during upload activation : %s' % str(currentUploadStatus.data['Result']))
-            break
-        if currentUploadStatus.data['Result']['Status'] == "PENDING":
-            time.sleep(2) # wait for completion
-            currentUploadStatus=getObjectUploadStatus(fwConnection)
-    return uploadStatus
+def user_exists(fwConnection, username):
+    response = runCommand(fwConnection, "USER SHOW user=%s" % username)
+    if response.ret == 100:
+        return True
+    else:
+        return False
 
 
-def user_exists(fwConnection, username, m):
-    """ returns a dict with keys ['code','data','format','msg','output','parser','ret','xml'] """
-    ret = runCommand(fwConnection, "USER SHOW user=%s" % username)
-    if ret.ret == 100:
+def user_getdn(fwConnection, username):
+    response = runCommand(fwConnection, "USER SHOW user=%s" % username)
+    data = response.parser.serialize_data()
+    user_dn = data['User']['dn']
+    return user_dn
+
+
+def group_getmembers(fwConnection, groupname):
+    response = runCommand(fwConnection, "USER GROUP SHOW group=%s" % groupname)
+    if response.ret >= 200:
+        # probably groupname error
+        #TODO: implement group check
+        return None
+    data = response.parser.serialize_data()
+    member_keys = [k for k in data['Group'].keys() if 'member' in k]
+    members = [data['Group'][m] for m in member_keys]
+
+    return members
+
+
+def user_in_group(fwConnection, username, groupname):
+    user_dn = user_getdn(fwConnection, username)
+    members = group_getmembers(fwConnection, groupname)
+    if not members:
+        return False
+    if user_dn in members:
         return True
     else:
         return False
@@ -146,6 +142,7 @@ def main():
         argument_spec={
             "name": {"required": True, "type": "str"},
             "state": {"type": "str", "default": "present", "choices": ['absent', 'present']},
+            "group": {"required": False, "type": "str"},
             "force_modify": {"required": False, "type":"bool", "default":False},
             "timeout": {"required": False, "type": "int", "default": None},
             "appliance": {
@@ -168,6 +165,7 @@ def main():
 
     name = module.params['name']
     state = module.params['state']
+    group = module.params['group']
     force_modify = module.params['force_modify']
 
     if name is None:
@@ -211,33 +209,29 @@ def main():
                              data=response.parser.serialize_data(), ret=response.ret)
 ##
 # custom
+
     resultJson=dict(changed=False, original_message='', message='')
 
     if state == 'present':
-      if user_exists(client, name, module):
-        module.debug("user %s exists !" % name)
-        resultJson['changed']=False
-        resultJson['message']="user %s already exists !" % name
+      if user_exists(client, name):
+        user_dn = user_getdn(client, name)
+        if group:
+            if user_in_group(client, name, group):
+                resultJson['changed']=False
+                resultJson['message']="user %s already exists and is in the right group!" % name
+            else:
+                resultJson['changed']=True
+                resultJson['message']="user %s already exists but not in group %s!" % (name, group)
+        else:
+          resultJson['changed']=False
+          resultJson['message']="user %s already exists !" % name
       else:
-        module.debug("user %s does not exists !" % name)
         resultJson['changed']=True
         resultJson['message']="user %s does not exists !" % name
 
       client.disconnect()
       module.exit_json(**resultJson)
 
-#      resultJson=dict()
-#      resultJson['output']=str(response)
-#      for (k,v) in dict(response).items():
-#          resultJson[k]=v
-#      if response['Status'] == "OK":
-#          resultJson['changed']=True
-#          module.exit_json(**resultJson)
-#      else:
-#          resultJson['changed']=False
-#          resultJson['success']=False
-#          resultJson['msg']="Errors occured during the import operation"
-#          module.fail_json(**resultJson)
     module.exit_json(**resultJson)
 
 if __name__ == '__main__':
