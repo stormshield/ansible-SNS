@@ -1,7 +1,7 @@
 - hosts: localhost
   connection: local
   vars:
-    appliancelist: "{{ groups['sns-appliances'] }}"
+    appliancelist: "{{ groups['sns_appliances'] }}"
     backup_folder: "{{ lookup('env', 'HOME') }}/Downloads"
     timestamp: "{{ ansible_date_time.iso8601_basic_short }}"
 
