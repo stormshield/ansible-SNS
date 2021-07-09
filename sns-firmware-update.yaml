@@ -38,7 +38,7 @@
 
     - name: Check if appliance firmware is not more recent
       fail: msg="Firmware on appliance is more recent"
-      when: "version < myversion.value"
+      when: "myversion.value is version(version, '>')"
 
     - name: Check if firmware update is already downloaded
       stat:
