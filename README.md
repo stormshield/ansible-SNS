@@ -111,6 +111,10 @@ Example:
         proxy: socks5://myproxy.local:1080
 ```
 
+## Modify privilege
+
+Add `force_modify: true` for scripts or action which require the modify privilege. That will disconnect any other administration session with the modify privilege and ensure the script or action can write changes.
+
 ## sns_getconf
 
 This module extracts information from the result of a configuration command. The default parameters is the value returned if the token is not found in the analyzed result.
@@ -147,6 +151,7 @@ Depending on the size of the file, an upload task can take some time.
 ```yaml
 - name: Upload CSV OBJECT with a local file
   sns_object_import:
+    force_modify: true
     path: path/to/objectFile.csv
     appliance:
       host: myappliance.local
