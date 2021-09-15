@@ -26,12 +26,23 @@ description:
   Configuration API reference: https://documentation.stormshield.eu/SNS/v4/en/Content/Basic_Command_Line_Interface_configurations
 options:
   uid:
-    name of the user. Format is supposed to be firstname.lastname. Common Name will try to be "Firstname Lastname".
+    description:
+      - id of the user. Format is supposed to be firstname.lastname. Common Name will try to be "Firstname Lastname".
+  firstname:
+    description:
+      - first name of the user. Will be associated to "given name" in stormshield's directory.
+  lastname:
+    description:
+      - Last name of the user. Will be assiciated to "name" in stormshield's directory.
   group:
-    group to which user belongs (TODO: only one for now)
+    description:
+      - group to which user belongs (TODO: only one for now)
+  mail:
+    description:
+      - email address of the user. If specified, email will be set for user in stormshield's directory. It will be used for identity creation. (and used as part of VPN credential) (TODO: email cannot be modified for now)
   state:
       description:
-          - Whether the account should exist or not, taking action if the state is different from what is stated.
+        - Whether the account should exist or not, taking action if the state is different from what is stated.
       choices: [ absent, present ]
       default: present
   force_modify:
@@ -53,6 +64,8 @@ EXAMPLES = '''
 - name: Create a user account
   sns_users:
     uid: toto.tata
+    firstname: toto
+    lastname: tata
     group: TotoGroup
     mail: toto.tata@domain.fr
     state: present
@@ -87,14 +100,15 @@ def runCommand(fwConnection,command):
 
 
 class User:
-    def __init__(self, uid, group=None, mail=None, module=None):
+    def __init__(self, uid, firstname, lastname, group=None, mail=None, module=None):
         self.uid = uid
         self.group = group
         self.module = module  # mostly used to debug ansible module
         self.dn = None
         self.mail = None
         self.new_mail = mail
-        self.given_name = " ".join([w.capitalize() for w in self.uid.replace('.', ' ').split()])
+        self.firstname = firstname
+        self.lastname = lastname
 
 
     def exists(self, fwConnection):
@@ -115,11 +129,8 @@ class User:
 
 
     def create(self, fwConnection):
-        firstname = self.given_name.split()[0]
-        lastname = self.given_name.split()[1]
-        # self.module.fail_json(msg="USER CREATE uid=%s name=%s gname=\"%s\"" % (self.uid, name, self.given_name))
-        response = runCommand(fwConnection, "USER CREATE uid=%s name=%s gname=\"%s\"" % 
-                              (self.uid, firstname, lastname))
+        response = runCommand(fwConnection, "USER CREATE uid=%s name=\"%s\" gname=\"%s\"" %
+                              (self.uid, self.lastname, self.firstname))
         if response.ret >= 200:
             self.module.fail_json(msg="error creating user %s" % self.uid, data=response.parser.serialize_data(),
                                   result=response.output, ret=response.ret)
@@ -196,6 +207,8 @@ def main():
     module = AnsibleModule(
         argument_spec={
             "uid": {"required": True, "type": "str"},
+            "firstname": {"required": True, "type": "str"},
+            "lastname": {"required": True, "type": "str"},
             "email": {"required": False, "type": "str"},
             "state": {"type": "str", "default": "present", "choices": ['absent', 'present']},
             "group": {"required": False, "type": "str"},
@@ -221,6 +234,8 @@ def main():
 
     # prefly checks
     uid = module.params['uid']
+    firstname = module.params['firstname']
+    lastname = module.params['lastname']
     state = module.params['state']
     group = module.params['group']
     email = module.params['email']
@@ -270,7 +285,7 @@ def main():
 
     # user handling
     resultJson=dict(changed=False, original_message='', message='')
-    current_user = User(uid, group, email, module)
+    current_user = User(uid, firstname, lastname, group, email, module)
 
     if state == 'present':
         if not current_user.exists(client):
@@ -298,6 +313,7 @@ def main():
                 resultJson['message']="user %s added to group %s!" % (uid, group)
 
         if email:
+            # TODO handle email changing. Warning, this will have effects on identity and certificates!
             if not current_user.mail:
                 current_user.add_mail(client)
                 resultJson['changed']=True
