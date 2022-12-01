@@ -4,7 +4,7 @@
 
 - name: Backup appliance
   sns_command:
-    appliance: "{{ hostvars[target]['vars'] }}"
+    appliance: "{{ hostvars[target]['appliance'] }}"
     command: "CONFIG BACKUP list=all > {{ backup_file }}"
   ignore_errors: yes
   register: backup
