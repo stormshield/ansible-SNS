@@ -1,9 +1,9 @@
 # This repository is deprecated
 
-The Ansible SNS modules are now available in an Ansible Galaxy collection.
+The Ansible SNS roles are now available in an Ansible Galaxy collection.
 
 - [SNS collection in Ansible Galaxy](https://galaxy.ansible.com/ui/repo/published/stormshield/sns/)
-- [New Gihub repository](https://stormshield.github.io/ansible-sns-collection/)
+- [New Github repository](https://github.com/stormshield/ansible-sns-collection)
 - [SNS collection documentation](https://stormshield.github.io/ansible-sns-collection/)
 
 
