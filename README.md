@@ -1,3 +1,12 @@
+# This repository is deprecated
+
+The Ansible SNS modules are now available in an Ansible Galaxy collection.
+
+- [SNS collection in Ansible Galaxy](https://galaxy.ansible.com/ui/repo/published/stormshield/sns/)
+- [New Gihub repository](https://stormshield.github.io/ansible-sns-collection/)
+- [SNS collection documentation](https://stormshield.github.io/ansible-sns-collection/)
+
+
 # ANSIBLE STORMSHIELD SNS modules
 
 Ansible modules to configure Stormshield Network Security Appliances.
